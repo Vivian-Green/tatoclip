@@ -1,0 +1,15 @@
+/.idea
+/__pycache__
+
+*.mp4
+targets*.json
+
+thumbnail_cache
+
+cache.json
+funky.py
+*.ttf
+
+tatoclipLog.txt
+ffmpeg_command.sh
+run.sh

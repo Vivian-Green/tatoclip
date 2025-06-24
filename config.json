@@ -1,0 +1,15 @@
+{
+  "FONT_PATH": "heygorgeous.ttf",
+  "BIT_RATE": "30000k",
+  "LOG_NAME": "tatoclipLog.txt",
+  "CACHE_PATH": "cache.json",
+  "OUTPUT_DIR": "no_name_defined_in_targets_json_metadata",
+  "COLORS": {
+    "0": "\u001b[97m",
+    "1": "\u001b[92m",
+    "2": "\u001b[93m",
+    "3": "\u001b[91m",
+    "4": "\u001b[96m"
+  },
+  "skip_pytube": 1
+}
