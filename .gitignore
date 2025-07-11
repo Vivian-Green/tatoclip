@@ -2,6 +2,8 @@
 /__pycache__
 
 *.mp4
+*.m4a
+*.part
 targets*.json
 
 thumbnail_cache

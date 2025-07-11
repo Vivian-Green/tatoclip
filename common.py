@@ -36,14 +36,13 @@ def override_output_dir(): # todo: lmao??
 
     OUTPUT_DIR = meta.get("name", OUTPUT_DIR)
 
-def update_targets_0_1():
-    global TARGETS
+def update_targets_0_1(targets, filepath):
     print("updating from version 0 to 1...")
 
-    if not isinstance(TARGETS, dict):
+    if not isinstance(targets, dict):
         raise ValueError("wuh")
 
-    url, data = next(iter(TARGETS.items()))
+    url, data = next(iter(targets.items()))
     meta = data[0]
 
     # ensure of: name, prefix
@@ -57,12 +56,12 @@ def update_targets_0_1():
         meta[k] = default
 
     meta["version"] = 1
-    meta["link"] = url
+    meta["url"] = url
 
     new_targets = [meta] + data[1:]
 
     TARGETS = new_targets
-    with open("targets.json", "w") as f:
+    with open(filepath, "w") as f:
         json.dump(TARGETS, f, indent=4)
 
     print("updated from version 0 to 1!")
@@ -93,7 +92,7 @@ def load_targets():
             while this_version < targets_version:
                 match this_version:
                     case 0:
-                        update_targets_0_1()
+                        update_targets_0_1(TARGETS, "targets.json")
                         this_version = 1
                     case _:
                         ValueError(f"no update function to handle updating {this_version} to {targets_version}")
@@ -101,8 +100,8 @@ def load_targets():
         else:
             raise ValueError(f"invalid version (expected {targets_version}, got {this_version})")
 
-    if not "list" in meta['link']:
-        raise ValueError(f"Invalid url, expected playlist but got f{meta['link']}")
+    if not "list" in meta['url']:
+        raise ValueError(f"Invalid url, expected playlist but got f{meta['url']}")
 
     override_output_dir()
 
@@ -559,12 +558,12 @@ def process_targets_with(strategy: VideoProcessingStrategy):
 
     meta = TARGETS[0]
     prefix = meta.get("prefix", "Part ")
-    link = meta.get("link", "https...")
+    url = meta.get("url", "https...")
 
 
-    if "list" in link:
+    if "list" in url:
         output_files = process_playlist(
-            playlist_url=link,
+            playlist_url=url,
             timestamps=TARGETS,
             process_fn=strategy,
             prefix=prefix,
@@ -573,6 +572,6 @@ def process_targets_with(strategy: VideoProcessingStrategy):
         )
         expected_files.extend(output_files)
     else:
-        raise ValueError(f"Non-playlist link detected: {link}")
+        raise ValueError(f"Non-playlist url detected in targets.json metadata - url: {url}")
 
     return expected_files
