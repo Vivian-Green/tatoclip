@@ -9,8 +9,6 @@ from enum import Enum
 from pytube import Playlist
 from typing import Protocol
 
-from repolib import true_values
-
 from ytdlp_checker import ensure_ytdlp
 from tatoclipLogging import LogModule
 
@@ -36,11 +34,8 @@ def override_output_dir(): # todo: lmao??
 
     OUTPUT_DIR = meta.get("name", OUTPUT_DIR)
 
-def update_targets_0_1(targets, filepath):
+def update_targets_0_1(targets: dict, filepath: str) -> list:
     print("updating from version 0 to 1...")
-
-    if not isinstance(targets, dict):
-        raise ValueError("wuh")
 
     url, data = next(iter(targets.items()))
     meta = data[0]
@@ -48,21 +43,23 @@ def update_targets_0_1(targets, filepath):
     # ensure of: name, prefix
     meta_keys_list = {
         "prefix": "Part ",
-        "name": "default"
+        "name": "default",
+        "version": 1,
+        "url": url
     }
+
     for k, default in meta_keys_list.items():
         if k in meta:
             continue
-        meta[k] = default
-
-    meta["version"] = 1
-    meta["url"] = url
+        meta[k] = default    
 
     new_targets = [meta] + data[1:]
-
-    TARGETS = new_targets
+    
+    targets = new_targets
     with open(filepath, "w") as f:
-        json.dump(TARGETS, f, indent=4)
+        json.dump(targets, f, indent=4)
+
+    return targets
 
     print("updated from version 0 to 1!")
 
@@ -80,11 +77,11 @@ def load_targets():
         if isinstance(meta, dict):
             this_version = meta.get("version", targets_version)
     else:
-        if do_update_meta:
-            print("couldn't get metadata version..")
+        if do_update_meta and isinstance(TARGETS, dict):
+            print("couldn't get metadata version.. assuming v0")
             this_version = 0
         else:
-            raise ValueError(f"???")
+            raise ValueError("couldn't get metadata version, and did not find a v0 dictionary?")
 
     if this_version < targets_version:
         if do_update_meta:
@@ -92,13 +89,17 @@ def load_targets():
             while this_version < targets_version:
                 match this_version:
                     case 0:
-                        update_targets_0_1(TARGETS, "targets.json")
+                        v1_targets = update_targets_0_1(TARGETS, "targets.json")
+                        TARGETS = v1_targets
                         this_version = 1
+                        print("updated v0 targets file to v1")
                     case _:
                         ValueError(f"no update function to handle updating {this_version} to {targets_version}")
 
         else:
             raise ValueError(f"invalid version (expected {targets_version}, got {this_version})")
+    elif this_version > targets_version:
+        raise ValueError(f"invalid version (expected {targets_version}, got {this_version})")
 
     if not "list" in meta['url']:
         raise ValueError(f"Invalid url, expected playlist but got f{meta['url']}")
