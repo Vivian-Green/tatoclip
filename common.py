@@ -65,8 +65,9 @@ def update_targets_0_1(targets: dict, filepath: str) -> list:
 
 
 def load_targets():
-    global TARGETS, targets_version
+    global TARGETS, targets_version, meta
     do_update_meta = True
+    meta = None  # Initialize meta
 
     with open("targets.json", "r") as f:
         TARGETS = json.load(f)
@@ -101,8 +102,11 @@ def load_targets():
     elif this_version > targets_version:
         raise ValueError(f"invalid version (expected {targets_version}, got {this_version})")
 
+    if meta is None and len(TARGETS) > 0:
+        meta = TARGETS[0]
+        
     if not "list" in meta['url']:
-        raise ValueError(f"Invalid url, expected playlist but got f{meta['url']}")
+        raise ValueError(f"Invalid url, expected playlist but got {meta['url']}")
 
     override_output_dir()
 

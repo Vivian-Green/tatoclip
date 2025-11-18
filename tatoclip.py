@@ -1,5 +1,6 @@
 import math
 from common import *
+from metadata_handler import get_effective_index, resolve_alias_to_effective_index, get_alias_for_index
 
 # Constants and config
 
@@ -7,9 +8,9 @@ CLIP_BUFFER_SECONDS = 3 # todo: move to config, cont. in common.py
 FRAME_RATE = 30  # Hardcoded frame rate # todo: move to config
 
 timestamp_args = { # todo: move to config
-    "x_offset": 15,
-    "y_offset": 990,
-    "font_size": 24,
+    "x_offset": 15, # default: 15
+    "y_offset": 1040, # default: 990
+    "font_size": 20,
     "draw_type": "updating"
 }
 
@@ -169,28 +170,39 @@ def clip_and_timestamp_ffmpeg(input_file, start_time, duration, output_file, pre
         clipping_times[duration] = [end_clipping_time - start_clipping_time]
 
 work_units_total = 0
+work_units_active_total = 0
 work_units_completed = 0
+work_units_active_completed = 0
+active_start_time = None
+last_work_unit_update = None
 
 def clip_video(timestamps, video_filename, prefix=""):
-    global video_downloading_times, video_clipping_times, work_units_completed
-    video_filepath = os.path.join(OUTPUT_DIR, video_filename)
+    global video_downloading_times, video_clipping_times
+    global work_units_completed, work_units_active_total, work_units_active_completed, active_start_time, last_work_unit_update
 
+    video_filepath = os.path.join(OUTPUT_DIR, video_filename)
     if not os.path.exists(video_filepath):
         print_err(f"Failed to clip {video_filepath} as it does not exist!")
         return False
 
     start_time_clipping = time.time()
-
-    print_colored(f"extracting from {video_filename}", "extract_clips_ffmpeg", 4)
     clip_files = []
-
     output_folder = os.path.join(OUTPUT_DIR, sanitize(video_filename[:-4])).lower()
 
-    for start_time, duration in timestamps.items(): # todo: DRY
+    for start_time, duration in timestamps.items():
         update_loading_ui()
+        unit_amount = duration + 2 * CLIP_BUFFER_SECONDS
+        work_units_completed += unit_amount  # total units for progress bar
+        last_work_unit_update = time.time()
+
         if not should_process_clip(start_time, prefix, output_folder):
-            work_units_completed += duration + 2 * CLIP_BUFFER_SECONDS
             continue
+
+        # Start timing active processing
+        if active_start_time is None:
+            active_start_time = time.time()
+
+        work_units_active_total += unit_amount
 
         filename = f"{prefix}_{start_time.replace(':', '..')}_timestamped.mp4".lower()
         output_file = os.path.join(output_folder, filename).replace(" ", "_")
@@ -198,27 +210,43 @@ def clip_video(timestamps, video_filename, prefix=""):
         if os.path.exists(output_file):
             print_colored(f"Skipping {output_file} as it already exists.", "extract_clips_ffmpeg", 2)
             clip_files.append(output_file)
-            work_units_completed += duration + 2 * CLIP_BUFFER_SECONDS
+            work_units_active_completed += unit_amount
             continue
 
         clip_and_timestamp_ffmpeg(video_filepath, timestamp_to_sec(start_time), duration, output_file, prefix)
         clip_files.append(output_file)
-        work_units_completed += duration + 2 * CLIP_BUFFER_SECONDS
+
+        # Increment active completed only for actually processed clips
+        work_units_active_completed += unit_amount
+
     update_loading_ui()
-
-    clipping_time = time.time() - start_time_clipping
-
-    video_clipping_times.append((video_filename[:-4], clipping_time))
-
+    video_clipping_times.append((video_filename[:-4], time.time() - start_time_clipping))
     return clip_files
 
+
 def clip_video_strategy(index, video_url, video_timestamps, prefix, video_filename):
-    global work_units_completed
-    if not should_process_clips(video_filename[:-4], video_timestamps, OUTPUT_DIR, f"{prefix}{index}"):
-        print_colored(f"Skipping {video_filename} as its clips already exist.", "download_video_thread", 2)
+    global work_units_completed, TARGETS
+
+    raw_index = index
+    effective_index = get_effective_index(TARGETS, raw_index)
+    alias = get_alias_for_index(TARGETS, str(raw_index))
+
+    print("YOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO\n\n\nYOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO\n\n\nYOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO\n\n\nYOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO\n\n\nYOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO\n\n\nYOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO\n\n\nYOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO\n\n\nYOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO\n\n\nYOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO\n\n\n")
+    print(alias)
+    print("YOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO\n\n\nYOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO\n\n\nYOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO\n\n\nYOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO\n\n\nYOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO\n\n\nYOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO\n\n\nYOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO\n\n\nYOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO\n\n\nYOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO\n\n\n")
+
+    # Use alias if available, otherwise use prefix + effective index
+    if alias:  # alias exists
+        display_name = alias
+    else:
+        display_name = f"{prefix}{effective_index}"
+
+    if not should_process_clips(video_filename[:-4], video_timestamps, OUTPUT_DIR, display_name):
+        print_colored(f"Skipping {video_filename} as its clips already exist.", "clip_video_thread", 2)
         work_units_completed += sum(duration + 2 * CLIP_BUFFER_SECONDS for duration in video_timestamps.values())
         return False
-    temp = clip_video(video_timestamps, video_filename, f"{prefix}{index}")
+
+    temp = clip_video(video_timestamps, video_filename, display_name)
     return temp
 
 
@@ -323,44 +351,51 @@ def init_loading_ui():
     # Start with an initial update
     update_loading_ui()
 
-def update_loading_ui(bar_2_progress = 0.0):
+def update_loading_ui(bar_2_progress = 0.0): # todo: STOP UPDATING PROCESSING SPEED IN REAL TIME??? PROCESSING SPEED SHOULD BE UPDATED ONCE AFTER EACH CLIP.
     """Update the GUI loading bar with current progress"""
     global work_units_total, work_units_completed, start_time, loading_window
+    global work_units_active_total, work_units_active_completed, active_start_time, last_work_unit_update
+    global loading_window
     
     if work_units_total == 0 or not loading_window:
         return
-    
-    # Calculate progress
-    progress = min(work_units_completed / work_units_total, 1.0)
-    percentage = progress * 100
-    
-    # Update progress bar
-    #print(work_units_completed)
+
+    # Total progress for the main bar
+    progress_total = min(work_units_completed / work_units_total, 1.0)
+    percentage = progress_total * 100
     progress_bar['value'] = work_units_completed
     progress_bar2['value'] = bar_2_progress
     progress_label.config(text=f"{percentage:.1f}%")
-    
-    # Calculate time information
-    elapsed = datetime.now() - start_time
-    if progress > 0:
-        estimated_total = elapsed.total_seconds() / progress
-        remaining = timedelta(seconds=max(0, estimated_total - elapsed.total_seconds()))
-        time_str = f"Elapsed: {str(elapsed).split('.')[0]} | Remaining: {str(remaining).split('.')[0]}"
+
+    # --- Active processing speed ---
+    if active_start_time and work_units_active_total > 0:
+        now = time.time()
+        if last_work_unit_update is None:
+            last_work_unit_update = now
+        active_elapsed = last_work_unit_update - active_start_time
+        # units/sec based only on actively processed clips
+        speed = work_units_active_completed / max(active_elapsed, 0.0001)
+        # Estimated remaining time for entire workload, based on active speed
+        remaining_seconds = (work_units_total - work_units_completed) / max(speed, 0.0001)
+        remaining = timedelta(seconds=remaining_seconds)
+        elapsed_td = timedelta(seconds=active_elapsed)
+
+        time_str = f"Elapsed: {str(elapsed_td).split('.')[0]} | Remaining: {str(remaining).split('.')[0]}"
+
+        last_work_unit_update = now
     else:
-        time_str = f"Elapsed: {str(elapsed).split('.')[0]} | Remaining: calculating..."
-    
-    # Calculate processing speed
-    speed = work_units_completed / max(1, elapsed.total_seconds())
-    
+        speed = 0
+        time_str = "Elapsed: 0:00:00 | Remaining: calculating..."
+
     # Update labels
     time_label.config(text=time_str)
     speed_label.config(text=f"Processing speed: {speed:.1f} units/sec")
-    
+
     # Update the window
     loading_window.update()
     
     # Close the window if processing is complete
-    if progress >= 1.0:
+    if progress_total >= 1.0:
         loading_window.after(2000, loading_window.destroy)  # Close after 2 seconds   
 
 

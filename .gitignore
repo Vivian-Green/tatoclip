@@ -15,3 +15,5 @@ funky.py
 tatoclipLog.txt
 ffmpeg_command.sh
 run.sh
+
+*.json_old
