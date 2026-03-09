@@ -26,7 +26,35 @@ with open(CONFIG_PATH, 'r') as config_file:
 CACHE_PATH = config.get("CACHE_PATH", "cache.json")
 BIT_RATE = config.get("BIT_RATE", "50000k")
 OUTPUT_DIR = config.get("OUTPUT_DIR", "videos")
+CLIP_BUFFER_SECONDS = config.get("CLIP_BUFFER_SECONDS", 3)
+FRAME_RATE = config.get("FRAME_RATE", 30)
+COMBINED_MODE = True # todo: default to false when not testing?
 TARGETS = {}
+
+try:
+    FONT_PATH = config["FONT_PATH"]
+    if not os.path.exists(FONT_PATH):
+        print(f"FONT_PATH {FONT_PATH} not found")
+        exit(1)
+except KeyError:
+    print(f"FONT_PATH not defined in config.json")
+    # todo: default safe font instead of exiting here. ffmpeg has one, but.. using it would require refactoring building the command iirc
+    exit(1)
+
+try:
+    TIMESTAMP_ARGS = config["TIMESTAMP_ARGS"]
+except KeyError:
+    print(f"\n\n\n\n\n\n        !!!        TIMESTAMP_ARGS not defined in config.json        !!!        \n\n\n\n\n\n")
+    print(f"\n\n\n\n\n\n        !!!                    using defaults...                    !!!        \n\n\n\n\n\n")
+    TIMESTAMP_ARGS = config.get("TIMESTAMP_ARGS", {
+        "x_offset": 15,  # default: 15
+        "y_offset": 1050,  # default: 990
+        "font_size": 20,
+        "draw_type": "updating",
+        "borderw": 2,
+        "shadowx": 3,
+        "shadowy": 3
+    })
 
 def override_output_dir(): # todo: lmao??
     global OUTPUT_DIR, TARGETS
@@ -63,9 +91,15 @@ def update_targets_0_1(targets: dict, filepath: str) -> list:
 
     print("updated from version 0 to 1!")
 
-
+loaded_targets = False
 def load_targets():
-    global TARGETS, targets_version, meta
+    global TARGETS, targets_version, meta, loaded_targets
+
+    # if targets is already loaded, just return TARGETS
+    if loaded_targets:
+        return TARGETS
+
+    loaded_targets = True
     do_update_meta = True
     meta = None  # Initialize meta
 
@@ -109,6 +143,7 @@ def load_targets():
         raise ValueError(f"Invalid url, expected playlist but got {meta['url']}")
 
     override_output_dir()
+    return TARGETS
 
 load_targets()
 
@@ -524,6 +559,8 @@ def process_targets_with(strategy: VideoProcessingStrategy):
                       help="Starting index for processing (1-based).")
     parser.add_argument("end_index", type=int, nargs="?",
                       help="Optional ending index for processing.")
+    parser.add_argument("--combined", action="store_true",
+                      help="Combine clips per video into single compilation")
     args = parser.parse_args()
 
     if not callable(strategy):

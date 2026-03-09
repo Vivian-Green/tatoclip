@@ -1,6 +1,17 @@
 {
   "FONT_PATH": "heygorgeous.ttf",
-  "BIT_RATE": "30000k",
+  "CLIP_BUFFER_SECONDS": 3,
+  "FRAME_RATE": 30,
+  "TIMESTAMP_ARGS": {
+    "x_offset": 15,
+    "y_offset": 1050,
+    "font_size": 20,
+    "draw_type": "updating",
+    "borderw": 2,
+    "shadowx": 3,
+    "shadowy": 3
+  },
+  "BIT_RATE": "15000k",
   "LOG_NAME": "tatoclipLog.txt",
   "CACHE_PATH": "cache.json",
   "OUTPUT_DIR": "no_name_defined_in_targets_json_metadata",
