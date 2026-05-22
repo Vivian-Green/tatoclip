@@ -17,3 +17,6 @@ ffmpeg_command.sh
 run.sh
 
 *.json_old
+transcript_fetcher.py
+build_targets_from_transcript.py
+build_targets_from_transcript.sh

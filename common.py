@@ -31,6 +31,9 @@ FRAME_RATE = config.get("FRAME_RATE", 30)
 COMBINED_MODE = True # todo: default to false when not testing?
 TARGETS = {}
 
+HIGH_RES_THRESHOLD = 1440          # resolution threshold (height) for capping frame rate
+HIGH_RES_FRAME_RATE = 30            # frame rate to use for resolutions >= threshold
+
 try:
     FONT_PATH = config["FONT_PATH"]
     if not os.path.exists(FONT_PATH):

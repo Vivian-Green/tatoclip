@@ -1,7 +1,7 @@
 {
   "FONT_PATH": "heygorgeous.ttf",
   "CLIP_BUFFER_SECONDS": 3,
-  "FRAME_RATE": 30,
+  "FRAME_RATE": 60,
   "TIMESTAMP_ARGS": {
     "x_offset": 15,
     "y_offset": 1050,
