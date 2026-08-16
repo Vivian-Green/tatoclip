@@ -1,3 +1,8 @@
+from urllib.request import urlopen
+from packaging import version
+import sys
+import json
+import yt_dlp
 import argparse
 import os
 import subprocess
@@ -6,7 +11,6 @@ import json
 import time
 from datetime import datetime
 from enum import Enum
-from pytube import Playlist
 from typing import Protocol
 
 from ytdlp_checker import ensure_ytdlp
@@ -303,34 +307,66 @@ def get_playlist_links(playlist_url):
     global cache_data
     if playlist_url in cache_data:
         return cache_data[playlist_url]
-        
     return get_playlist_links_untrusted(playlist_url)
-    
+
 def get_playlist_links_untrusted(playlist_url):
     global cache_data
+    # ensure yt-dlp is up-to-date
+    ensure_ytdlp()
 
     try:
-        # Fetch the playlist and its links
-        playlist = Playlist(playlist_url)
-        new_links = list(playlist.video_urls)
+        # Configure yt-dlp to extract only the playlist entries (fast)
+        ydl_opts = {
+            'quiet': True,
+            'no_warnings': True,
+            'ignoreerrors': True,
+            'extract_flat': True,          # only metadata, no video download
+            'force_generic_extractor': False,
+        }
+
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(playlist_url, download=False)
+
+        # Extract video URLs from the playlist entries
+        entries = info.get('entries', [])
+        if entries:
+            # If it's a playlist, build a list of video URLs
+            new_links = []
+            for entry in entries:
+                if not entry:
+                    continue
+                # Prefer webpage_url (full watch link) or construct from id
+                vid_url = entry.get('webpage_url')
+                if not vid_url and entry.get('id'):
+                    vid_url = f"https://www.youtube.com/watch?v={entry['id']}"
+                if vid_url:
+                    new_links.append(vid_url)
+        else:
+            # Single video (not a playlist)
+            vid_url = info.get('webpage_url') or info.get('url')
+            if vid_url:
+                new_links = [vid_url]
+            else:
+                raise ValueError("Could not extract any video URL")
+
+        if not new_links:
+            raise ValueError("No video URLs found")
 
         # Check if playlist URL is in cache
         if playlist_url in cache_data:
             # Compare lengths to decide if cache needs updating
             cached_links = cache_data[playlist_url]
             if len(new_links) != len(cached_links):
-                print(f"Playlist length has changed for {playlist_url}. Updating cache.") # todo: diff
+                print(f"Playlist length has changed for {playlist_url}. Updating cache.") # todo: diff?
                 cache_data[playlist_url] = new_links
                 autosave(1)
         else:
-            # Cache the new playlist links if not present
             cache_data[playlist_url] = new_links
             autosave(1)
-            
+
         return new_links
 
     except Exception as e:
-        # Handle potential errors (e.g., network issues, invalid URLs)
         print(f"Error fetching playlist links: {e}")
         return None
 
@@ -394,7 +430,6 @@ def sanitize(title):
     return title
 
 
-pytube_is_borked = False
 def fetch_title(video_url, alt_title="err fetching title2", send_views_bool=False):
     # please please please don't use this for file names, just.. please. Not again.
     #                                   - viv at 1:30am on apparently mario day 2025
@@ -402,7 +437,6 @@ def fetch_title(video_url, alt_title="err fetching title2", send_views_bool=Fals
     global youtube_title_fetch_count
     global last_save_time
     global cache_locked
-    global pytube_is_borked
 
     video_id = extract_video_id(video_url)
 
@@ -436,23 +470,21 @@ def fetch_title_ytdlp(video_url):
         assert not ytdlp_is_borked
         ensure_ytdlp()
 
-        # Temporary download location to get video metadata
-        temp_file = os.path.join(DIR_PATH, OUTPUT_DIR, 'temp_video.mp4')
-
-        # Use yt-dlp to extract metadata and get the video title
-        command = [
-            'yt-dlp',
-            '--quiet',
-            '--extract-audio',
-            '--get-title',
-            '--output', temp_file,
-            video_url
-        ]
-
-        result = subprocess.run(command, check=True, capture_output=True, text=True)
-        title = result.stdout.strip()  # Extract the title from the command's output
-        print(f"Fetched title with yt-dlp: {title}")
-        return title
+        # Use yt-dlp's Python API to get title without downloading
+        ydl_opts = {
+            'quiet': True,
+            'no_warnings': True,
+            'extract_flat': True,
+            'force_generic_extractor': False,
+        }
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(video_url, download=False)
+            title = info.get('title')
+            if title:
+                print(f"Fetched title with yt-dlp: {title}")
+                return title
+            else:
+                raise ValueError("No title in extracted info")
 
     except Exception as e:
         ytdlp_is_borked = True
