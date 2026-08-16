@@ -27,17 +27,17 @@ CACHE_PATH = config.get("CACHE_PATH", "cache.json")
 BIT_RATE = config.get("BIT_RATE", "50000k")
 OUTPUT_DIR = config.get("OUTPUT_DIR", "videos")
 CLIP_BUFFER_SECONDS = config.get("CLIP_BUFFER_SECONDS", 3)
-FRAME_RATE = config.get("FRAME_RATE", 30)
+FRAME_RATE = config.get("FRAME_RATE", 60)
 COMBINED_MODE = True # todo: default to false when not testing?
 TARGETS = {}
 
-HIGH_RES_THRESHOLD = 1440          # resolution threshold (height) for capping frame rate
+HIGH_RES_THRESHOLD = 9991440          # resolution threshold (height) for capping frame rate
 HIGH_RES_FRAME_RATE = 30            # frame rate to use for resolutions >= threshold
 
 try:
     FONT_PATH = config["FONT_PATH"]
     if not os.path.exists(FONT_PATH):
-        print(f"FONT_PATH {FONT_PATH} not found")
+        print(f"Font at {FONT_PATH} not found")
         exit(1)
 except KeyError:
     print(f"FONT_PATH not defined in config.json")
